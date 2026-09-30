@@ -12,7 +12,7 @@
 // ============================================================
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbyAmkUIkOUdissmVir9QQSDn9YieodZDFBxpyvt5ltlM2BISdCRiLSAtWYGE_bOcjQp6Q/exec',
-  API_KEY: 'PANJI_API_KEY_KAMU', // ← ganti dengan value PANJI_API_KEY kamu
+  API_KEY: 'panji_08956223213600801200', // ← ganti dengan value PANJI_API_KEY kamu
   UPLOAD_CONCURRENCY: 3,
   MAX_RETRY: 2,
   CHUNK_SIZE_MB: 40 // Telegram + Apps Script payload limit
