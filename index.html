@@ -1308,6 +1308,37 @@
   </div>
 </div>
 
+  <script>
+  // Fallback: kalau app.js gagal load atau versi lama
+  if (typeof window.openUploadModal !== 'function') {
+    window.openUploadModal = function() {
+      var m = document.getElementById('uploadModal');
+      var b = document.getElementById('uploadBackdrop');
+      if (m) m.classList.add('show');
+      if (b) b.classList.add('show');
+    };
+  }
+  if (typeof window.closeUploadModal !== 'function') {
+    window.closeUploadModal = function() {
+      var m = document.getElementById('uploadModal');
+      var b = document.getElementById('uploadBackdrop');
+      if (m) m.classList.remove('show');
+      if (b) b.classList.remove('show');
+    };
+  }
+  if (typeof window.go !== 'function') {
+    window.go = function(screen) {
+      document.querySelectorAll('.screen').forEach(function(s) {
+        s.classList.remove('active');
+        s.style.display = 'none';
+      });
+      var el = document.getElementById('screen-' + screen);
+      if (el) { el.classList.add('active'); el.style.display = 'block'; }
+    };
+  }
+</script>
+<script src="app.js"></script>
+
 <!-- ==================== UPDATE: TOAST ==================== -->
 <div class="toast" id="toast"></div>
 
