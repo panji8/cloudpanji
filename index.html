@@ -4,10 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#E8F5EC" />
+<link rel="icon" href="data:," />
 <title>Panji Cloud</title>
 <style>
-  /* ... CSS kamu tetap sama persis, tidak saya ubah ... */
-
   :root{
     --bg:#EAEFF2;
     --card:#FFFFFF;
@@ -617,7 +616,7 @@
     .mnav.upload svg{width:22px;height:22px}
   }
 
-  /* ==================== UPDATE: MODAL UPLOAD ==================== */
+  /* ==================== MODAL UPLOAD ==================== */
   .modal-backdrop{
     position:fixed;inset:0;background:rgba(31,42,51,.5);
     backdrop-filter:blur(4px);
@@ -631,6 +630,7 @@
     box-shadow:var(--shadow-md);
     z-index:100;padding:24px;
     opacity:0;pointer-events:none;transition:.25s;
+    max-height:90vh;overflow-y:auto;
   }
   .modal.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
   .modal h3{margin:0 0 6px;font-size:18px;font-weight:800;letter-spacing:-.3px}
@@ -663,7 +663,7 @@
     box-shadow:0 6px 18px rgba(125,214,154,.35);
   }
 
-  /* ==================== UPDATE: SHEET DETAIL ==================== */
+  /* ==================== SHEET DETAIL ==================== */
   .sheet-backdrop{
     position:fixed;inset:0;background:rgba(31,42,51,.5);
     backdrop-filter:blur(4px);
@@ -708,7 +708,7 @@
   .sheet-actions button:active{transform:scale(.95)}
   .sheet-actions button .e{font-size:18px}
 
-  /* ==================== UPDATE: TOAST ==================== */
+  /* ==================== TOAST ==================== */
   .toast{
     position:fixed;left:50%;bottom:calc(96px + var(--safe-bottom));
     transform:translate(-50%,20px);
@@ -721,7 +721,7 @@
   }
   .toast.show{opacity:1;transform:translate(-50%,0)}
 
-  /* ==================== UPDATE: FILES GRID (untuk renderFiles) ==================== */
+  /* ==================== FILES GRID ==================== */
   .files-grid{
     display:grid;
     grid-template-columns:repeat(auto-fill,minmax(110px,1fr));
@@ -749,7 +749,7 @@
   .empty .e{font-size:42px;margin-bottom:8px;opacity:.5}
   .empty p{font-size:13px;margin:0}
 
-  /* ==================== UPDATE: FOLDER LIST ==================== */
+  /* ==================== FOLDER LIST ==================== */
   .folder-row{
     display:flex;align-items:center;gap:12px;
     padding:13px 14px;background:var(--card);
@@ -766,7 +766,7 @@
   .folder-row .fn b{display:block;font-size:13.5px;font-weight:700}
   .folder-row .fn span{font-size:11.5px;color:var(--text-3)}
 
-  /* ==================== UPDATE: UPLOAD QUEUE ==================== */
+  /* ==================== UPLOAD QUEUE ==================== */
   .queue{
     background:var(--card);border-radius:var(--radius);
     border:1px solid var(--border);margin-top:14px;overflow:hidden;
@@ -814,7 +814,7 @@
 </head>
 <body>
 
-<!-- ==================== SVG SPRITE (SAMA) ==================== -->
+<!-- ==================== SVG SPRITE ==================== -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -901,7 +901,6 @@
     </div>
 
     <nav class="side-menu">
-      <!-- UPDATE: data-nav untuk sinkron dengan app.js -->
       <button class="side-link active" data-nav="home" onclick="go('home')"><svg><use href="#i-home"/></svg> Dashboard</button>
       <button class="side-link" data-nav="files" onclick="go('files')"><svg><use href="#i-image"/></svg> Photos</button>
       <button class="side-link" data-nav="files" onclick="go('files')"><svg><use href="#i-video"/></svg> Videos</button>
@@ -914,7 +913,6 @@
     <div class="side-foot">
       <div class="lbl">Backup Status</div>
       <b id="side-status">Loading…</b>
-      <!-- UPDATE: tombol buka modal upload -->
       <button onclick="openUploadModal()">+ Upload now</button>
     </div>
   </aside>
@@ -961,7 +959,6 @@
     <div id="screen-home" class="screen active">
       <div class="grid">
 
-        <!-- Profile card -->
         <div class="profile-card">
           <div class="profile-avatar">
             👤
@@ -981,7 +978,6 @@
           </div>
         </div>
 
-        <!-- Big stat -->
         <div class="card">
           <div class="card-head">
             <div>
@@ -1012,7 +1008,6 @@
           </div>
         </div>
 
-        <!-- Team stack -->
         <div class="team-stack">
           <div class="team-panel">
             <div class="ptitle">Storage</div>
@@ -1051,7 +1046,6 @@
           </div>
         </div>
 
-        <!-- Donut -->
         <div class="card">
           <div class="card-head">
             <div>
@@ -1086,7 +1080,6 @@
           </div>
         </div>
 
-        <!-- Upload activity -->
         <div class="card">
           <div class="recruit-head">
             <div>
@@ -1096,7 +1089,6 @@
             <button class="chev-btn" onclick="go('files')"><svg><use href="#i-chev-right"/></svg></button>
           </div>
 
-          <!-- UPDATE: grid file dinamis -->
           <div class="files-grid" data-files-grid>
             <div class="empty">
               <div class="e">📭</div>
@@ -1203,7 +1195,6 @@
       <h2 class="right-h1">Uploads & backups</h2>
     </div>
 
-    <!-- UPDATE: activity list dinamis -->
     <div class="activity" data-activity-list>
       <div class="act-item">
         <div class="av">…</div>
@@ -1214,7 +1205,6 @@
       </div>
     </div>
 
-    <!-- Storage summary -->
     <div class="teal-card">
       <div class="teal-row green">
         <div class="lbl">Verified</div>
@@ -1253,7 +1243,7 @@
   <button class="mnav" data-nav="settings" onclick="go('settings')"><svg><use href="#i-user"/></svg>Profile</button>
 </nav>
 
-<!-- ==================== UPDATE: MODAL UPLOAD ==================== -->
+<!-- ==================== MODAL UPLOAD ==================== -->
 <div class="modal-backdrop" id="uploadBackdrop" onclick="closeUploadModal()"></div>
 <div class="modal" id="uploadModal">
   <h3>Upload files</h3>
@@ -1269,7 +1259,6 @@
     <p>Drop files here atau klik untuk pilih</p>
   </div>
 
-  <!-- UPDATE: file input tersembunyi -->
   <input type="file" multiple data-file-input
          accept="image/*,video/*,application/pdf"
          style="display:none" />
@@ -1281,11 +1270,10 @@
     </button>
   </div>
 
-  <!-- UPDATE: queue upload ditampilkan di sini -->
   <div data-upload-queue></div>
 </div>
 
-<!-- ==================== UPDATE: SHEET DETAIL ==================== -->
+<!-- ==================== SHEET DETAIL ==================== -->
 <div class="sheet-backdrop" id="sheetBackdrop" onclick="closeDetail()"></div>
 <div class="sheet" id="sheet">
   <div class="sheet-grip"></div>
@@ -1300,7 +1288,6 @@
   <div class="kv"><span>Status</span><b id="kvStatus" style="color:var(--mint-3)">VERIFIED</b></div>
 
   <div class="sheet-actions">
-    <!-- UPDATE: data-action="open" di-handle app.js -->
     <button data-action="open"><span class="e">👁️</span>Open</button>
     <button data-action="download"><span class="e">⬇️</span>Download</button>
     <button data-action="favorite"><span class="e">⭐</span>Favorite</button>
@@ -1308,9 +1295,17 @@
   </div>
 </div>
 
-  <script>
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ==================== LOAD APP.JS (hanya 1x) ==================== -->
+<script src="app.js?v=3"></script>
+
+<!-- ==================== FALLBACK (hanya kalau app.js gagal load) ==================== -->
+<script>
   // Fallback: kalau app.js gagal load atau versi lama
   if (typeof window.openUploadModal !== 'function') {
+    console.warn('[fallback] openUploadModal tidak ada di app.js, pakai fallback');
     window.openUploadModal = function() {
       var m = document.getElementById('uploadModal');
       var b = document.getElementById('uploadBackdrop');
@@ -1327,6 +1322,7 @@
     };
   }
   if (typeof window.go !== 'function') {
+    console.warn('[fallback] go() tidak ada di app.js, pakai fallback');
     window.go = function(screen) {
       document.querySelectorAll('.screen').forEach(function(s) {
         s.classList.remove('active');
@@ -1336,14 +1332,15 @@
       if (el) { el.classList.add('active'); el.style.display = 'block'; }
     };
   }
+  if (typeof window.closeDetail !== 'function') {
+    window.closeDetail = function() {
+      var s = document.getElementById('sheet');
+      var b = document.getElementById('sheetBackdrop');
+      if (s) s.classList.remove('show');
+      if (b) b.classList.remove('show');
+    };
+  }
 </script>
-<script src="app.js"></script>
-
-<!-- ==================== UPDATE: TOAST ==================== -->
-<div class="toast" id="toast"></div>
-
-<!-- ==================== UPDATE: LOAD APP.JS ==================== -->
-<script src="app.js"></script>
 
 </body>
 </html>
