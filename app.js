@@ -1,7 +1,6 @@
-
 /**
  * PANJI CLOUD — Frontend
- * Version: 1.0 (MVP)
+ * Version: 1.1 (MVP + modal upload)
  *
  * Connect ke Apps Script backend.
  * Semua data dummy di UI diganti dengan data nyata dari Google Sheets.
@@ -28,6 +27,7 @@ const STATE = {
   currentFilter: 'all',
   currentSort: 'newest',
   currentScreen: 'home',
+  currentFolderId: '',
   uploadQueue: [],
   uploadSession: null,
   isUploading: false
@@ -78,28 +78,23 @@ async function loadHealth() {
 
     // Update dashboard stats
     updateEl('stat-total', formatNumber(data.total || 0));
+    updateEl('stat-total-2', formatNumber(data.total || 0));
     updateEl('stat-verified', formatNumber(data.verified || 0));
     updateEl('stat-pending', formatNumber(data.pending || 0));
     updateEl('stat-failed', formatNumber(data.failed || 0));
+    updateEl('teal-verified', formatNumber(data.verified || 0));
+    updateEl('teal-pending', formatNumber(data.pending || 0));
+    updateEl('teal-failed', formatNumber(data.failed || 0));
+    updateEl('teal-total', formatNumber(data.total || 0));
+    updateEl('donut-total', formatNumber(data.total || 0));
+    updateEl('badge-verified', formatNumber(data.verified || 0));
 
-    // Update health badge
-    const healthDot = document.querySelector('.health .dot');
-    const healthTitle = document.querySelector('.health .txt b');
-    const healthSub = document.querySelector('.health .txt span');
-    if (healthDot && healthTitle && healthSub) {
-      if (data.failed > 0) {
-        healthDot.style.background = 'var(--err, #f87171)';
-        healthTitle.textContent = `${data.failed} file gagal`;
-        healthSub.textContent = `${data.verified} verified · ${data.pending} pending`;
-      } else if (data.pending > 0) {
-        healthDot.style.background = 'var(--warn, #fbbf24)';
-        healthTitle.textContent = `${data.pending} file pending`;
-        healthSub.textContent = `${data.verified} verified`;
-      } else {
-        healthDot.style.background = 'var(--ok, #34d399)';
-        healthTitle.textContent = 'All files verified';
-        healthSub.textContent = `${data.verified} verified · 0 pending · 0 failed`;
-      }
+    // Update side status
+    const sideStatus = document.getElementById('side-status');
+    if (sideStatus) {
+      if (data.failed > 0) sideStatus.textContent = `${data.failed} file gagal`;
+      else if (data.pending > 0) sideStatus.textContent = `${data.pending} file pending`;
+      else sideStatus.textContent = 'All files safe';
     }
 
     return data;
@@ -118,11 +113,27 @@ async function loadFiles() {
       sort: STATE.currentSort,
       limit: 200
     };
-    if (STATE.currentFilter !== 'all') params.type = STATE.currentFilter;
+    if (STATE.currentFilter === 'photo') params.type = 'photo';
+    if (STATE.currentFilter === 'video') params.type = 'video';
+    if (STATE.currentFilter === 'document') params.type = 'document';
+    if (STATE.currentFolderId) params.folder_id = STATE.currentFolderId;
+    if (STATE.currentScreen === 'favorites') params.favorite = 'true';
 
     const data = await api('listFiles', params);
     STATE.files = data.files || [];
     renderFiles(STATE.files);
+
+    // Update donut breakdown
+    const photos = STATE.files.filter(f => f.file_type === 'photo').length;
+    const videos = STATE.files.filter(f => f.file_type === 'video').length;
+    const docs = STATE.files.filter(f => f.file_type === 'document').length;
+    updateEl('donut-photos', formatNumber(photos));
+    updateEl('donut-videos', formatNumber(videos));
+    updateEl('donut-docs', formatNumber(docs));
+
+    // Update recent activity
+    renderActivity(STATE.files.slice(0, 5));
+
     return data;
   } catch (err) {
     toast(`Gagal load files: ${err.message}`);
@@ -131,7 +142,6 @@ async function loadFiles() {
 }
 
 function renderFiles(files) {
-  // Cari semua grid di halaman
   const grids = document.querySelectorAll('[data-files-grid]');
   if (!grids.length) return;
 
@@ -149,25 +159,59 @@ function renderFiles(files) {
   const html = files.map(file => {
     const isImage = file.file_type === 'photo';
     const isVideo = file.file_type === 'video';
-    const link = file.telegram_link || '#';
     const icon = isVideo ? '🎬' : isImage ? '🖼️' : '📄';
     const fav = file.favorite ? '<span class="fav">⭐</span>' : '';
     const tag = file.filename
-      ? `<span class="tag">${escapeHtml(truncate(file.filename, 12))}</span>`
+      ? `<span class="tag">${escapeHtml(truncate(file.filename, 16))}</span>`
       : '';
 
     return `
       <div class="tile ${isVideo ? 'video' : ''}"
            onclick="openDetail('${file.id}')">
-        ${isImage && file.thumbnail_file_id
-          ? `<img src="${getThumbUrl(file.thumbnail_file_id)}" alt="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`
-          : icon}
+        ${icon}
         ${tag}
         ${fav}
       </div>`;
   }).join('');
 
   grids.forEach(grid => { grid.innerHTML = html; });
+}
+
+function renderActivity(files) {
+  const container = document.querySelector('[data-activity-list]');
+  if (!container) return;
+
+  if (!files.length) {
+    container.innerHTML = `
+      <div class="act-item">
+        <div class="av">📭</div>
+        <div class="info">
+          <b>Belum ada aktivitas</b>
+          <span>Upload file untuk mulai</span>
+        </div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = files.map(f => {
+    const icon = f.file_type === 'video' ? '🎬'
+              : f.file_type === 'photo' ? '📷'
+              : '📄';
+    const status = (f.upload_status === 'VERIFIED')
+      ? '<div class="status-badge s-done">Done</div>'
+      : f.upload_status === 'FAILED'
+        ? '<div class="status-badge s-fail">Failed</div>'
+        : '<div class="status-badge s-wait">Uploading</div>';
+    return `
+      <div class="act-item" onclick="openDetail('${f.id}')">
+        <div class="av">${icon}</div>
+        <div class="info">
+          <b>${escapeHtml(f.filename || '—')}</b>
+          <span>${formatDate(f.upload_date)} · ${formatBytes(f.file_size)}</span>
+        </div>
+        ${status}
+      </div>`;
+  }).join('');
 }
 
 // ============================================================
@@ -201,7 +245,7 @@ function renderFolders() {
         <b>${escapeHtml(f.folder_name)}</b>
         <span>${countFilesInFolder(f.folder_id)} files</span>
       </div>
-      <div class="chev" style="color:var(--text-mute)">›</div>
+      <div class="chev" style="color:var(--text-3)">›</div>
     </div>
   `).join('');
 }
@@ -209,9 +253,10 @@ function renderFolders() {
 function renderFolderSelect() {
   const select = document.querySelector('[data-folder-select]');
   if (!select) return;
-  select.innerHTML = STATE.folders.map(f =>
-    `<option value="${f.folder_id}">${escapeHtml(f.folder_name)}</option>`
-  ).join('');
+  select.innerHTML = '<option value="">— Default —</option>' +
+    STATE.folders.map(f =>
+      `<option value="${f.folder_id}">${escapeHtml(f.folder_name)}</option>`
+    ).join('');
 }
 
 function countFilesInFolder(folderId) {
@@ -219,18 +264,14 @@ function countFilesInFolder(folderId) {
 }
 
 function filterByFolder(folderId) {
-  STATE.currentFilter = 'folder';
   STATE.currentFolderId = folderId;
-  // reload dengan filter folder
-  api('listFiles', { folder_id: folderId, limit: 200 })
-    .then(data => renderFiles(data.files || []));
+  go('files');
 }
 
 // ============================================================
 // UPLOAD
 // ============================================================
 async function uploadFile(file, folderId = '', folderName = '') {
-  // Baca file sebagai base64
   const base64 = await fileToBase64(file);
 
   const payload = {
@@ -286,7 +327,6 @@ async function startUpload(files, folderId = '', folderName = '') {
 
   renderUploadQueue();
 
-  // Proses dengan concurrency terbatas
   const workers = Array(CONFIG.UPLOAD_CONCURRENCY).fill(null).map(() => worker(folderId, folderName));
   await Promise.all(workers);
 
@@ -294,7 +334,6 @@ async function startUpload(files, folderId = '', folderName = '') {
   const s = STATE.uploadSession;
   toast(`Upload selesai: ${s.uploaded}/${s.total} berhasil${s.failed ? `, ${s.failed} gagal` : ''}`);
 
-  // Refresh library
   loadHealth();
   loadFiles();
 }
@@ -371,9 +410,13 @@ function renderQueueItem(item) {
     failed: '⚠ Failed'
   }[item.status];
 
+  const icon = item.file.type.startsWith('video') ? '🎬'
+            : item.file.type.startsWith('image') ? '🖼️'
+            : '📄';
+
   return `
     <li class="file-item">
-      <div class="ic">${item.file.type.startsWith('video') ? '🎬' : '🖼️'}</div>
+      <div class="ic">${icon}</div>
       <div class="info">
         <b>${escapeHtml(item.file.name)}</b>
       </div>
@@ -392,30 +435,28 @@ async function openDetail(fileId) {
   const sheet = document.getElementById('sheet');
   if (!sheet) return;
 
-  document.getElementById('sheetName').textContent = file.filename;
-  document.getElementById('sheetSub').textContent =
-    `${file.folder_name || 'Uncategorized'} · ${formatDate(file.upload_date)} · ${formatBytes(file.file_size)}`;
-
+  const sheetName = document.getElementById('sheetName');
+  const sheetSub = document.getElementById('sheetSub');
   const kvFolder = document.getElementById('kvFolder');
   const kvDate = document.getElementById('kvDate');
   const kvSize = document.getElementById('kvSize');
   const kvType = document.getElementById('kvType');
+  const kvStatus = document.getElementById('kvStatus');
+  const preview = document.getElementById('sheetPreview');
 
+  if (sheetName) sheetName.textContent = file.filename;
+  if (sheetSub) sheetSub.textContent =
+    `${file.folder_name || 'Uncategorized'} · ${formatDate(file.upload_date)} · ${formatBytes(file.file_size)}`;
   if (kvFolder) kvFolder.textContent = file.folder_name || '—';
   if (kvDate) kvDate.textContent = formatDate(file.upload_date);
   if (kvSize) kvSize.textContent = formatBytes(file.file_size);
   if (kvType) kvType.textContent = file.file_type;
+  if (kvStatus) kvStatus.textContent = file.upload_status || 'VERIFIED';
 
-  // Preview: kalau image dan ada file_id, tampilkan via Telegram
-  const preview = document.getElementById('sheetPreview');
   if (preview) {
-    if (file.file_type === 'photo' && file.telegram_file_id) {
-      preview.innerHTML = `<img src="${getThumbUrl(file.telegram_file_id)}" style="width:100%;height:100%;object-fit:cover;border-radius:16px" onerror="this.parentElement.textContent='🖼️'">`;
-    } else if (file.file_type === 'video') {
-      preview.textContent = '🎬';
-    } else {
-      preview.textContent = '📄';
-    }
+    if (file.file_type === 'video') preview.textContent = '🎬';
+    else if (file.file_type === 'photo') preview.textContent = '🖼️';
+    else preview.textContent = '📄';
   }
 
   // Tombol Open → buka link Telegram
@@ -426,6 +467,25 @@ async function openDetail(fileId) {
         window.open(file.telegram_link, '_blank');
       } else {
         toast('Link Telegram tidak tersedia');
+      }
+    };
+  }
+
+  // Favorite
+  const favBtn = document.querySelector('[data-action="favorite"]');
+  if (favBtn) {
+    favBtn.onclick = () => toggleFavorite(file.id);
+  }
+
+  // Download (untuk MVP: buka link Telegram juga)
+  const dlBtn = document.querySelector('[data-action="download"]');
+  if (dlBtn) {
+    dlBtn.onclick = () => {
+      if (file.telegram_link) {
+        window.open(file.telegram_link, '_blank');
+        toast('Buka Telegram untuk download');
+      } else {
+        toast('Link tidak tersedia');
       }
     };
   }
@@ -455,6 +515,75 @@ async function toggleFavorite(fileId) {
 }
 
 // ============================================================
+// MODAL UPLOAD
+// ============================================================
+function openUploadModal() {
+  const modal = document.getElementById('uploadModal');
+  const backdrop = document.getElementById('uploadBackdrop');
+  if (modal) modal.classList.add('show');
+  if (backdrop) backdrop.classList.add('show');
+}
+
+function closeUploadModal() {
+  const modal = document.getElementById('uploadModal');
+  const backdrop = document.getElementById('uploadBackdrop');
+  if (modal) modal.classList.remove('show');
+  if (backdrop) backdrop.classList.remove('show');
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function go(screen) {
+  STATE.currentScreen = screen;
+  STATE.currentFolderId = '';
+
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active');
+    s.style.display = 'none';
+  });
+  const el = document.getElementById('screen-' + screen);
+  if (el) {
+    el.classList.add('active');
+    el.style.display = 'block';
+  }
+
+  // Update nav active
+  document.querySelectorAll('.side-link, .pill, .mnav').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll(`[data-nav="${screen}"]`).forEach(n => n.classList.add('active'));
+
+  // Update breadcrumb
+  const crumb = document.getElementById('crumb-current');
+  if (crumb) {
+    const labels = {
+      home: 'Dashboard',
+      files: 'Library',
+      folders: 'Folders',
+      favorites: 'Favorites',
+      backup: 'Backup',
+      settings: 'Settings'
+    };
+    crumb.textContent = labels[screen] || screen;
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Lazy load per screen
+  if (screen === 'files' || screen === 'home' || screen === 'favorites') loadFiles();
+  if (screen === 'folders') loadFolders();
+  if (screen === 'backup' || screen === 'home') loadHealth();
+  if (screen === 'settings') renderSettings();
+}
+
+function renderSettings() {
+  updateEl('set-api', CONFIG.API_URL.slice(0, 50) + '...');
+  if (STATE.health) {
+    updateEl('set-bot', STATE.health.bot || '—');
+    updateEl('set-chat', STATE.health.chat_id || '—');
+  }
+}
+
+// ============================================================
 // UTILS
 // ============================================================
 function updateEl(id, val) {
@@ -468,6 +597,7 @@ function formatNumber(n) {
 
 function formatBytes(b) {
   if (!b) return '0 B';
+  b = Number(b);
   const units = ['B', 'KB', 'MB', 'GB'];
   let i = 0;
   while (b >= 1024 && i < units.length - 1) { b /= 1024; i++; }
@@ -495,13 +625,6 @@ function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-function getThumbUrl(fileId) {
-  // Preview via Telegram direct file URL (limit 20MB)
-  // Karena bot token tidak boleh di frontend, pakai cara lain:
-  // Untuk MVP, kita tampilkan icon placeholder. V2 bisa pakai proxy.
-  return ''; // sementara kosong
-}
-
 // ============================================================
 // TOAST
 // ============================================================
@@ -516,23 +639,37 @@ function toast(msg) {
 }
 
 // ============================================================
-// NAVIGATION
+// REFRESH ALL
 // ============================================================
-function go(screen) {
-  STATE.currentScreen = screen;
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  const el = document.getElementById('screen-' + screen);
-  if (el) el.classList.add('active');
+async function refreshAll() {
+  toast('Refreshing…');
+  await loadHealth();
+  await loadFiles();
+  await loadFolders();
+  toast('Selesai refresh');
+}
 
-  document.querySelectorAll('.nav-item, .mnav, .side-link').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll(`[data-nav="${screen}"]`).forEach(n => n.classList.add('active'));
+// ============================================================
+// FILE HANDLER
+// ============================================================
+function handleFilesSelected(files) {
+  const folderSelect = document.querySelector('[data-folder-select]');
+  const folderId = folderSelect ? folderSelect.value : '';
+  const folderName = folderSelect && folderSelect.selectedIndex >= 0
+    ? folderSelect.options[folderSelect.selectedIndex]?.text
+    : '';
 
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const maxBytes = CONFIG.CHUNK_SIZE_MB * 1024 * 1024;
+  const valid = Array.from(files).filter(f => {
+    if (f.size > maxBytes) {
+      toast(`⚠ ${f.name} terlalu besar (${formatBytes(f.size)}). Max ${CONFIG.CHUNK_SIZE_MB}MB`);
+      return false;
+    }
+    return true;
+  });
 
-  // Lazy load per screen
-  if (screen === 'files' || screen === 'home') loadFiles();
-  if (screen === 'folders') loadFolders();
-  if (screen === 'backup' || screen === 'home') loadHealth();
+  if (!valid.length) return;
+  startUpload(valid, folderId, folderName);
 }
 
 // ============================================================
@@ -541,26 +678,16 @@ function go(screen) {
 async function init() {
   console.log('Panji Cloud starting...');
 
-  // Cek konfigurasi
   if (CONFIG.API_KEY === 'PANJI_API_KEY_KAMU') {
     toast('⚠ Set API_KEY di app.js dulu');
     console.warn('API_KEY belum diganti di CONFIG');
   }
 
-  // Load awal
-  try {
-    await loadHealth();
-  } catch (e) { /* sudah di-toast */ }
+  try { await loadHealth(); } catch (e) {}
+  try { await loadFiles(); } catch (e) {}
+  try { await loadFolders(); } catch (e) {}
 
-  try {
-    await loadFiles();
-  } catch (e) { /* sudah di-toast */ }
-
-  try {
-    await loadFolders();
-  } catch (e) { /* sudah di-toast */ }
-
-  // Bind upload dropzone
+  // Bind dropzone
   const dz = document.getElementById('dropzone');
   if (dz) {
     ['dragenter', 'dragover'].forEach(ev => {
@@ -573,9 +700,13 @@ async function init() {
       const files = e.dataTransfer.files;
       if (files.length) handleFilesSelected(files);
     });
+    dz.addEventListener('click', () => {
+      const input = document.querySelector('[data-file-input]');
+      if (input) input.click();
+    });
   }
 
-  // File input
+  // Bind file input
   const fileInput = document.querySelector('[data-file-input]');
   if (fileInput) {
     fileInput.addEventListener('change', e => {
@@ -583,26 +714,28 @@ async function init() {
     });
   }
 
+  // Search
+  const searchInput = document.querySelector('[data-search-input]');
+  if (searchInput) {
+    searchInput.addEventListener('input', debounce(e => {
+      const q = e.target.value.trim();
+      if (!q) { loadFiles(); return; }
+      api('listFiles', { q, limit: 200 }).then(data => {
+        STATE.files = data.files || [];
+        renderFiles(STATE.files);
+      }).catch(() => {});
+    }, 400));
+  }
+
   console.log('Panji Cloud ready.');
 }
 
-function handleFilesSelected(files) {
-  const folderSelect = document.querySelector('[data-folder-select]');
-  const folderId = folderSelect ? folderSelect.value : '';
-  const folderName = folderSelect ? folderSelect.options[folderSelect.selectedIndex]?.text : '';
-
-  // Batas ukuran file
-  const maxBytes = CONFIG.CHUNK_SIZE_MB * 1024 * 1024;
-  const valid = Array.from(files).filter(f => {
-    if (f.size > maxBytes) {
-      toast(`⚠ ${f.name} terlalu besar (${formatBytes(f.size)}). Max ${CONFIG.CHUNK_SIZE_MB}MB`);
-      return false;
-    }
-    return true;
-  });
-
-  if (!valid.length) return;
-  startUpload(valid, folderId, folderName);
+function debounce(fn, ms) {
+  let t;
+  return function (...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), ms);
+  };
 }
 
 // Start
